@@ -1,43 +1,40 @@
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <unistd.h> 
-#include <pthread.h> 
+//Priorité et ordonnancement
 
-void* fonc(void* arg){ 
- int i; 
- for(i=0;i<7;i++){ 
-    printf("Tache %d : %d\n", (int) arg, i); 
-    sleep(1); //attendre 1 seconde 
- } 
-} 
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
 
-int main(void) 
-{ 
-    pthread_t tache1, tache2; //déclaration des deux tâches 
+void* fonc(void* arg){
+ int i;
+ for(i=0;i<7;i++){
+    printf("Tache %d : %d\n", (int) arg, i);
+    sleep(1);
+ }
+}
 
-    sched_param param; //structure de données permettant d'affecter la priorité sur une tache créée
+int main(void)
+{
+    pthread_t tache1, tache2;
+    pthread_attr_t attr;
+    struct sched_param param;
 
-    // Fonction qui oblige le système d'exploitation à prendre en compte les différents paramètres d'ordonnancement que va acquérir la tache
-    // PTHREAD_EXPLICIT_SCHED : la tâche à créer sera forcée d'utiliser les paramètres d'ordonnancement contenus dans sa propriété attr ;
-    // PTHREAD_INHERIT_SCHED : la tâche à créer héritera des propriétés d'ordonnancement de son processus créateur. Quels que soient les paramètres d'ordonnancement spécifiés dans attr, elle les ignorera si cette option est utilisée
-    pthread_attr_setinheritshed(attr, 
-
-    //CREATION DE L'ATTRIBUT PERMETTANT DE DETACHER LES TACHES DU PROCESSUS main()
-    //Ainsi main() n'attendra pas la fin d'éxecution des taches 1 et 2 pour se terminer
-    pthread_attr_t attr; // déclaration de la variable contenant les propriétés de la tâche
-    pthread_attr_init(&attr); //initialisation de attr aux valeurs par défaut. Obligatoire avant toute manipulation de attr
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED); // affectation de la propriété détachable à attr
+    pthread_attr_init(&attr);
+    param.sched_priority = 12;
+    pthread_setschedparam(pthread_self(), SCHED_FIFO, &param); //pthread_self() pointe sur le processus en cours d'exécution, à l'occurrence la fonction main()
+                                                               //le processus main() sera ordonnancé en SHED_FIFO avec une priorité de 12
+    pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
     
-    //CREATION EFFECTIVE DE LA TACHE 1
-    // thread	: tache1	: Pointeur de type pthread contenant l'identificateur de la tâche qui vient d'être créée
-    // attr	: NULL		: Variable de type pthread_attr_t, correspond au conteneur qui créer les propriétés de la tache (ordonnance, priorité, tache joignable/déjoinable)
-    // start_routine : fonc	: fonction qui va être exécutée
-    // arg	: (void*)1	: pointeur qui correspond au valeurs mis en paramètres de fonc
-    pthread_create(&tache1, NULL, fonc, (void*) 1); 
-    pthread_create(&tache2, NULL, fonc, (void*) 2); 
- 
+    param.sched_priority = 10;
+    pthread_attr_setschedparam(&attr, &param);
+    pthread_create(&tache1, &attr, fonc, 1); // la tâche tache1 créée, sera ordonnancée en SHED_FIFO avec une priorité de 10
 
-    pthread_attr_destroy(&attr); // détruire attr pour libérer la mémoire allouée
-    
-    return 0; 
+    param.sched_priority = 7;
+    pthread_attr_setschedparam(&attr, &param);
+    pthread_create(&tache2, &attr, fonc, 2);  // la tâche tache2 créée, sera ordonnancée en SHED_FIFO avec une priorité de 7
+
+    pthread_attr_destroy(&attr);
+    pthread_join(tache1, NULL);
+    pthread_join(tache2, NULL);
+    return 0;
 }
